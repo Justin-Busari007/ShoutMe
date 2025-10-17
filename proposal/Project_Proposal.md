@@ -10,8 +10,7 @@
 **Student 1 Name:** Justin Obasuyi  **ID Number:** 23382333  
 
 **Student 2 Name:** Adeolu Adeogun  **ID Number:** 23367453  
-
-*(A third team member is exceptional and requires detailed justification.)*  
+  
 
 **Staff Member Consulted:** Sahraoui Dhelim  
 
