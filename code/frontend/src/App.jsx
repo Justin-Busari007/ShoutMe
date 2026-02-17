@@ -1,21 +1,16 @@
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
 import Register from "./pages/Register";
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
-    
-      <div style={{ padding: 20 }}>
-        <nav style={{ marginBottom: 20 }}>
-          <Link to="/register">Register</Link>
-        </nav>
+      <Routes>
+        {/* Default page */}
+        <Route path="/" element={<Home />} />
 
-        <Routes>
-          <Route path="/register" element={<Register />} />
-        </Routes>
-      </div>
+        <Route path="/register" element={<Register />} />
+      </Routes>
     </BrowserRouter>
   );
 }
-
-export default App;
