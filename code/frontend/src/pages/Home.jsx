@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import {
   MapContainer, TileLayer, Marker, Popup,
   CircleMarker, useMapEvents, useMap,
@@ -74,29 +75,67 @@ function FlyTo({ target }) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function EventCard({ ev, onFocus }) {
-  const color = catColor(ev.category ?? "Other");
+  const navigate = useNavigate();
+  const color = catColor(ev.category_name ?? "Other");
   return (
-    <div onClick={() => onFocus(ev)} style={{ ...CS.chip, "--accent": color }} className="event-chip">
+    <div 
+      onClick={() => navigate(`/events/${ev.id}`)}
+      style={{ ...CS.chip, "--accent": color }} 
+      className="event-chip"
+    >
       <div style={{ ...CS.chipDot, background: color, boxShadow: `0 0 10px ${color}88` }} />
       <div style={CS.chipInfo}>
         <div style={CS.chipName}>{ev.title}</div>
-        <div style={CS.chipMeta}>{catEmoji(ev.category ?? "Other")} {ev.category ?? "Event"} · {ev.location_name ?? "See map"}</div>
+        <div style={CS.chipMeta}>{catEmoji(ev.category_name ?? "Other")} {ev.category_name ?? "Event"} · {ev.location_name ?? "See map"}</div>
       </div>
       <div style={{ ...CS.chipBadge, color }}>→</div>
     </div>
   );
 }
 
-function CreatePanel({ picked, onSubmit, loading, error, onClear }) {
+function CreatePanel({ picked, onSubmit, loading, error, onClear, categories }) {
   const [form, setForm] = useState({
-    title: "", description: "", start_time: "", end_time: "",
-    location_name: "", address: "", capacity: 50, is_public: true, category: "Other",
+    title: "", description: "", 
+    start_date: "", start_time: "",
+    end_date: "", end_time: "",
+    location_name: "", address: "", capacity: 50, is_public: true, category: "",
   });
+  
   const handle = (e) => {
     const { name, value, type, checked } = e.target;
     setForm((p) => ({ ...p, [name]: type === "checkbox" ? checked : value }));
   };
-  const submit = (e) => { e.preventDefault(); onSubmit(form, () => setForm({ title: "", description: "", start_time: "", end_time: "", location_name: "", address: "", capacity: 50, is_public: true, category: "Other" })); };
+  
+  const submit = (e) => { 
+    e.preventDefault(); 
+    
+    // Combine date and time into ISO format for backend
+    const start_datetime = form.start_date && form.start_time 
+      ? new Date(`${form.start_date}T${form.start_time}`).toISOString() 
+      : "";
+    const end_datetime = form.end_date && form.end_time 
+      ? new Date(`${form.end_date}T${form.end_time}`).toISOString() 
+      : "";
+    
+    const submissionData = {
+      title: form.title,
+      description: form.description,
+      location_name: form.location_name,
+      address: form.address,
+      capacity: form.capacity,
+      is_public: form.is_public,
+      category: Number(form.category), // Convert to number
+      start_time: start_datetime,
+      end_time: end_datetime,
+    };
+    
+    onSubmit(submissionData, () => setForm({ 
+      title: "", description: "", 
+      start_date: "", start_time: "",
+      end_date: "", end_time: "",
+      location_name: "", address: "", capacity: 50, is_public: true, category: ""
+    })); 
+  };
 
   return (
     <form onSubmit={submit} style={CS.createForm}>
@@ -125,8 +164,19 @@ function CreatePanel({ picked, onSubmit, loading, error, onClear }) {
 
       <div style={CS.field}>
         <label style={CS.fieldLabel}>Category</label>
-        <select name="category" value={form.category} onChange={handle} style={{ ...CS.fieldInput, paddingRight: 32 }}>
-          {Object.keys(CATS).map((c) => <option key={c} value={c}>{catEmoji(c)} {c}</option>)}
+        <select 
+          name="category" 
+          value={form.category} 
+          onChange={handle} 
+          style={{ ...CS.fieldInput, paddingRight: 32 }}
+          required
+        >
+          <option value="">Select a category...</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {catEmoji(cat.name)} {cat.name}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -135,14 +185,51 @@ function CreatePanel({ picked, onSubmit, loading, error, onClear }) {
         <textarea name="description" value={form.description} onChange={handle} placeholder="Tell people what to expect…" rows={3} style={{ ...CS.fieldInput, resize: "vertical", minHeight: 72 }} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Start Date & Time */}
         <div style={CS.field}>
-          <label style={CS.fieldLabel}>Start (ISO)</label>
-          <input name="start_time" value={form.start_time} onChange={handle} placeholder="2026-03-01T18:00:00Z" style={CS.fieldInput} />
+          <label style={CS.fieldLabel}>Start Date & Time</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input 
+              name="start_date" 
+              value={form.start_date} 
+              onChange={handle} 
+              type="date" 
+              style={CS.fieldInput} 
+              required 
+            />
+            <input 
+              name="start_time" 
+              value={form.start_time} 
+              onChange={handle} 
+              type="time" 
+              style={CS.fieldInput} 
+              required 
+            />
+          </div>
         </div>
+
+        {/* End Date & Time */}
         <div style={CS.field}>
-          <label style={CS.fieldLabel}>End (ISO)</label>
-          <input name="end_time" value={form.end_time} onChange={handle} placeholder="2026-03-01T21:00:00Z" style={CS.fieldInput} />
+          <label style={CS.fieldLabel}>End Date & Time</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input 
+              name="end_date" 
+              value={form.end_date} 
+              onChange={handle} 
+              type="date" 
+              style={CS.fieldInput} 
+              required 
+            />
+            <input 
+              name="end_time" 
+              value={form.end_time} 
+              onChange={handle} 
+              type="time" 
+              style={CS.fieldInput} 
+              required 
+            />
+          </div>
         </div>
       </div>
 
@@ -168,7 +255,9 @@ function CreatePanel({ picked, onSubmit, loading, error, onClear }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Home() {
+  const navigate = useNavigate();
   const [events,       setEvents]    = useState([]);
+  const [categories,   setCategories] = useState([]);
   const [status,       setStatus]    = useState("loading");
   const [apiError,     setApiError]  = useState("");
   const [picked,       setPicked]    = useState(null);
@@ -178,7 +267,20 @@ export default function Home() {
   const [createError,  setCreateError] = useState("");
   const [panel,        setPanel]     = useState("events"); // "events" | "create"
   const [focusedEvent, setFocusedEvent] = useState(null);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const user = useMemo(() => { try { return JSON.parse(localStorage.getItem("user") ?? "null"); } catch { return null; } }, []);
+
+  // ── Fetch categories ──
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/categories/`);
+      if (!res.ok) throw new Error(`${res.status}`);
+      const data = await res.json();
+      setCategories(Array.isArray(data) ? data : data.results ?? []);
+    } catch (e) {
+      console.error("Failed to fetch categories:", e);
+    }
+  }, []);
 
   // ── Fetch events ──
   const fetchEvents = useCallback(async () => {
@@ -195,7 +297,10 @@ export default function Home() {
     }
   }, []);
 
-  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  useEffect(() => { 
+    fetchCategories();
+    fetchEvents(); 
+  }, [fetchCategories, fetchEvents]);
 
   // ── Create event ──
   const handleCreate = async (form, resetForm) => {
@@ -212,7 +317,52 @@ export default function Home() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(Object.entries(body).map(([k, v]) => `${k}: ${[].concat(v).join(", ")}`).join(" · ") || `Error ${res.status}`);
+        
+        // Convert technical errors to user-friendly messages
+        const errors = [];
+        
+        if (body.title) {
+          errors.push("Please enter a title");
+        }
+        if (body.start_time) {
+          const msg = Array.isArray(body.start_time) ? body.start_time[0] : body.start_time;
+          if (msg.includes("format")) {
+            errors.push("Please select a valid start date and time");
+          } else {
+            errors.push("Start time: " + msg);
+          }
+        }
+        if (body.end_time) {
+          const msg = Array.isArray(body.end_time) ? body.end_time[0] : body.end_time;
+          if (msg.includes("format")) {
+            errors.push("Please select a valid end date and time");
+          } else {
+            errors.push("End time: " + msg);
+          }
+        }
+        if (body.category) {
+          const msg = Array.isArray(body.category) ? body.category[0] : body.category;
+          if (msg.includes("pk") || msg.includes("type")) {
+            errors.push("Please select a valid category");
+          } else {
+            errors.push("Category: " + msg);
+          }
+        }
+        if (body.location_name) {
+          errors.push("Please enter a location name");
+        }
+        if (body.capacity) {
+          errors.push("Capacity must be a positive number");
+        }
+        if (body.lat || body.lng) {
+          errors.push("Please click on the map to set a location");
+        }
+        
+        const errorMsg = errors.length > 0 
+          ? errors.join(". ") 
+          : "Unable to create event. Please check all fields.";
+        
+        throw new Error(errorMsg);
       }
       setPicked(null);
       setCreateMode(false);
@@ -233,8 +383,20 @@ export default function Home() {
     }
   };
 
+  // ── Toggle category filter ──
+  const toggleCategory = (categoryId) => {
+    setSelectedCategories((prev) =>
+      prev.includes(categoryId)
+        ? prev.filter((id) => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
+
   // ── Derived ──
-  const mappableEvents = events.filter((e) => typeof e.lat === "number" && typeof e.lng === "number");
+  const filteredEvents = selectedCategories.length > 0
+    ? events.filter((e) => selectedCategories.includes(e.category))
+    : events;
+  const mappableEvents = filteredEvents.filter((e) => typeof e.lat === "number" && typeof e.lng === "number");
 
   return (
     <div style={CS.page}>
@@ -249,6 +411,7 @@ export default function Home() {
         .event-chip:hover { background: rgba(255,255,255,0.06) !important; transform: translateX(3px); }
         .event-chip { transition: background 0.15s, transform 0.15s; }
         input:focus, select:focus, textarea:focus { border-color: #f97316 !important; outline: none; box-shadow: 0 0 0 3px rgba(249,115,22,0.15); }
+        a:hover { opacity: 0.85; }
         .leaflet-control-attribution { background: rgba(10,13,18,0.75)!important; color:#475569!important; font-size:10px!important; }
         .leaflet-control-attribution a { color:#64748b!important; }
         .leaflet-control-zoom a { background:#0f1219!important; color:#94a3b8!important; border-color:#1e2535!important; }
@@ -265,17 +428,69 @@ export default function Home() {
           <div style={CS.logoRow}>
             <div style={CS.logoDot} />
             <span style={CS.logoWord}>Shout<span style={{ color: "#f97316" }}>Me</span></span>
-            {user && <span style={CS.userBadge}>👤 {user.username}</span>}
+            {user ? (
+              <span style={CS.userBadge}>👤 {user.username}</span>
+            ) : (
+              <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <Link to="/login" style={CS.authLink}>Sign In</Link>
+                <Link to="/register" style={CS.authLinkPrimary}>Register</Link>
+              </div>
+            )}
           </div>
           <p style={CS.tagline}>Discover what's happening near you</p>
           <div style={CS.tabRow}>
             <button onClick={() => { setPanel("events"); setCreateMode(false); setPicked(null); }} style={{ ...CS.tab, ...(panel === "events" ? CS.tabActive : {}) }}>Events</button>
-            <button onClick={() => { setPanel("create"); setCreateMode(true); }} style={{ ...CS.tab, ...(panel === "create" ? CS.tabActive : {}) }}>+ Add Event</button>
+            <button 
+              onClick={() => {
+                if (!user) {
+                  alert("Please sign in to create events");
+                  navigate("/login");
+                  return;
+                }
+                setPanel("create"); 
+                setCreateMode(true);
+              }} 
+              style={{ ...CS.tab, ...(panel === "create" ? CS.tabActive : {}) }}
+            >
+              + Add Event
+            </button>
           </div>
         </div>
         <div style={CS.panelBody}>
           {panel === "events" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {/* Category Filter */}
+              {status === "ok" && categories.length > 0 && (
+                <div style={CS.categoryFilter}>
+                  <div style={CS.filterLabel}>Filter by category:</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => toggleCategory(cat.id)}
+                        style={{
+                          ...CS.categoryBtn,
+                          ...(selectedCategories.includes(cat.id) ? CS.categoryBtnActive : {}),
+                          background: selectedCategories.includes(cat.id)
+                            ? catColor(cat.name)
+                            : "rgba(255,255,255,0.03)",
+                          color: selectedCategories.includes(cat.id) ? "#fff" : "#94a3b8",
+                        }}
+                      >
+                        {catEmoji(cat.name)} {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedCategories.length > 0 && (
+                    <button
+                      onClick={() => setSelectedCategories([])}
+                      style={CS.clearCategoryBtn}
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              )}
               {status === "loading" && (
                 <div style={CS.statusMsg}>
                   <div style={{ width: 20, height: 20, border: "2px solid #1e2535", borderTop: "2px solid #f97316", borderRadius: "50%", animation: "spin 0.7s linear infinite", margin: "0 auto 10px" }} />
@@ -292,20 +507,30 @@ export default function Home() {
               {status === "ok" && events.length === 0 && (
                 <div style={CS.statusMsg}>No events yet. Be the first to add one!</div>
               )}
-              {status === "ok" && events.map((ev) => (
+              {status === "ok" && filteredEvents.length === 0 && selectedCategories.length > 0 && (
+                <div style={CS.statusMsg}>No events in selected categories</div>
+              )}
+              {status === "ok" && filteredEvents.map((ev) => (
                 <EventCard key={ev.id} ev={ev} onFocus={focusEvent} />
               ))}
             </div>
           )}
           {panel === "create" && (
-            <CreatePanel picked={picked} onSubmit={handleCreate} loading={createLoading} error={createError} onClear={() => setPicked(null)} />
+            <CreatePanel 
+              picked={picked} 
+              onSubmit={handleCreate} 
+              loading={createLoading} 
+              error={createError} 
+              onClear={() => setPicked(null)} 
+              categories={categories}
+            />
           )}
         </div>
       </div>
 
       {/* ── RIGHT: Map (col 2) ── */}
       <div style={CS.mapArea}>
-        <MapContainer center={DEFAULT_CENTER} zoom={13} zoomControl style={{ height: "100vh", width: "100%", position: "absolute", inset: 0 }}>
+        <MapContainer center={DEFAULT_CENTER} zoom={13} zoomControl style={{ height: "100%", width: "100%", position: "absolute", inset: 0 }}>
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             subdomains="abcd"
@@ -315,13 +540,13 @@ export default function Home() {
           <MapClickHandler onPick={(loc) => { if (createMode) { setPicked(loc); setPanel("create"); } }} enabled={createMode} />
           <FlyTo target={flyTarget} />
           {mappableEvents.map((ev) => {
-            const color = catColor(ev.category ?? "Other");
+            const color = catColor(ev.category_name ?? "Other");
             const isFocused = focusedEvent?.id === ev.id;
             return (
               <Marker key={ev.id} position={[ev.lat, ev.lng]} icon={makeCustomIcon(color, isFocused)}>
                 <Popup minWidth={200}>
                   <div style={{ padding: "4px 2px" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color, marginBottom: 4 }}>{ev.category ?? "Event"}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color, marginBottom: 4 }}>{ev.category_name ?? "Event"}</div>
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "#fff", marginBottom: 6 }}>{ev.title}</div>
                     <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.7 }}>
                       {ev.location_name && <div>📍 {ev.location_name}</div>}
@@ -352,18 +577,20 @@ export default function Home() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const CS = {
-  page:        { display: "grid", gridTemplateColumns: "380px 1fr", height: "100vh", width: "100vw", background: "#0a0d12", overflow: "hidden" },
-  mapArea:     { position: "relative", width: "100%", height: "100vh", minWidth: 0, gridColumn: 2, overflow: "hidden" },
+  page:        { display: "grid", gridTemplateColumns: "380px 1fr", height: "100vh", width: "100%", background: "#0a0d12", overflow: "hidden", position: "fixed", inset: 0 },
+  mapArea:     { position: "relative", width: "100%", height: "100%", minWidth: 0, gridColumn: 2, overflow: "hidden" },
   mapHint:     { position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)", background: "rgba(10,13,18,0.88)", backdropFilter: "blur(10px)", border: "1px solid rgba(249,115,22,0.4)", borderRadius: 12, padding: "10px 20px", color: "#fbd38d", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 8, zIndex: 500, whiteSpace: "nowrap", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" },
 
-  panel:       { display: "flex", flexDirection: "column", background: "#0a0d12", borderRight: "1px solid #1e2535", overflow: "hidden", boxShadow: "4px 0 40px rgba(0,0,0,0.5)", gridColumn: 1, zIndex: 10 },
+  panel:       { display: "flex", flexDirection: "column", background: "#0a0d12", borderRight: "1px solid #1e2535", overflow: "hidden", boxShadow: "4px 0 40px rgba(0,0,0,0.5)", gridColumn: 1, zIndex: 10, width: "100%", maxWidth: "380px" },
   panelHeader: { padding: "24px 22px 0", borderBottom: "1px solid #0f1219", flexShrink: 0 },
   panelBody:   { flex: 1, overflowY: "auto", padding: "16px 22px 24px" },
 
-  logoRow:   { display: "flex", alignItems: "center", gap: 10, marginBottom: 4 },
+  logoRow:   { display: "flex", alignItems: "center", gap: 10, marginBottom: 4, width: "100%" },
   logoDot:   { width: 9, height: 9, borderRadius: "50%", background: "#f97316", boxShadow: "0 0 10px #f97316aa", animation: "pulseRing 2s ease-out infinite" },
   logoWord:  { fontFamily: "'Bebas Neue', 'Arial Black', sans-serif", fontSize: 26, color: "#fff", letterSpacing: "0.06em" },
   userBadge: { marginLeft: "auto", fontSize: 11, color: "#64748b", background: "#0f1219", border: "1px solid #1e2535", borderRadius: 20, padding: "3px 10px" },
+  authLink:  { fontSize: 13, color: "#94a3b8", textDecoration: "none", fontWeight: 600, padding: "6px 12px", borderRadius: 8, transition: "color 0.2s, background 0.2s", background: "transparent", border: "1px solid #1e2535" },
+  authLinkPrimary: { fontSize: 13, color: "#fff", textDecoration: "none", fontWeight: 600, padding: "6px 12px", borderRadius: 8, transition: "background 0.2s, transform 0.1s", background: "#f97316", border: "none" },
   tagline:   { color: "#334155", fontSize: 12, margin: "0 0 16px" },
 
   tabRow:   { display: "flex", gap: 2, marginBottom: 0 },
@@ -376,6 +603,13 @@ const CS = {
   chipName:  { fontSize: 13, fontWeight: 700, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   chipMeta:  { fontSize: 11, color: "#475569", marginTop: 2 },
   chipBadge: { fontSize: 16, flexShrink: 0, opacity: 0.6 },
+
+  // Category filter
+  categoryFilter:   { padding: "12px 12px", background: "rgba(249,115,22,0.05)", border: "1px solid rgba(249,115,22,0.15)", borderRadius: 12 },
+  filterLabel:      { fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#475569", marginBottom: 8 },
+  categoryBtn:      { padding: "6px 12px", border: "1px solid #1e2535", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.2s", whiteSpace: "nowrap" },
+  categoryBtnActive:{ boxShadow: "0 0 12px rgba(249,115,22,0.4)" },
+  clearCategoryBtn: { marginTop: 8, padding: "6px 12px", background: "none", border: "1px solid #1e2535", borderRadius: 8, color: "#94a3b8", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "color 0.2s", width: "100%" },
 
   statusMsg:  { padding: "32px 0", textAlign: "center", color: "#334155", fontSize: 13, animation: "fadeIn 0.4s ease" },
   errorBox:   { padding: 16, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, color: "#fca5a5", fontSize: 13, textAlign: "center" },
