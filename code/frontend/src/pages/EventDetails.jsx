@@ -14,18 +14,17 @@ const API = "http://127.0.0.1:8000/api";
 
 // Category config matching Home.jsx
 const CATS = {
-  Music: { color: "#f97316", emoji: "🎵" },
-  Food: { color: "#22c55e", emoji: "🍔" },
-  Comedy: { color: "#a855f7", emoji: "🎤" },
-  Fitness: { color: "#06b6d4", emoji: "🏃" },
-  Biz: { color: "#f59e0b", emoji: "💼" },
-  Film: { color: "#ec4899", emoji: "🎬" },
-  Art: { color: "#8b5cf6", emoji: "🎨" },
-  Other: { color: "#64748b", emoji: "📍" },
+  Music: { color: "#f97316" },
+  Food: { color: "#22c55e" },
+  Comedy: { color: "#a855f7" },
+  Fitness: { color: "#06b6d4" },
+  Biz: { color: "#f59e0b" },
+  Film: { color: "#ec4899" },
+  Art: { color: "#8b5cf6" },
+  Other: { color: "#64748b" },
 };
 
 function catColor(cat) { return (CATS[cat] ?? CATS.Other).color; }
-function catEmoji(cat) { return (CATS[cat] ?? CATS.Other).emoji; }
 
 export default function EventDetails() {
   const { id } = useParams();
@@ -197,10 +196,10 @@ export default function EventDetails() {
     return (
       <div style={S.page}>
         <div style={S.errorBox}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>!</div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: "#fff" }}>Event Not Found</div>
           <div style={{ fontSize: 14, color: "#94a3b8", marginBottom: 20 }}>{error}</div>
-          <Link to="/" style={S.backBtn}>← Back to Events</Link>
+          <Link to="/" style={S.backBtn}>Back to Events</Link>
         </div>
       </div>
     );
@@ -247,12 +246,10 @@ export default function EventDetails() {
             {/* Host info */}
             <div style={S.metaRow}>
               <div style={S.metaItem}>
-                <span style={S.metaIcon}>👤</span>
                 <span style={S.metaLabel}>Hosted by</span>
                 <span style={S.metaValue}>{event.host_name || "Unknown"}</span>
               </div>
               <div style={S.metaItem}>
-                <span style={S.metaIcon}>👥</span>
                 <span style={S.metaLabel}>Attendees</span>
                 <span style={S.metaValue}>
                   {event.attendee_count || 0}
@@ -330,7 +327,6 @@ export default function EventDetails() {
           {/* REQ-5.4: Capacity warning */}
           {isFull && (
             <div style={{ ...S.infoBox, borderColor: "#f59e0b", background: "rgba(245,158,11,0.08)" }}>
-              <span style={{ fontSize: 16 }}>⚠️</span>
               <span style={{ fontSize: 14, color: "#fbbf24" }}>
                 This event is at full capacity ({event.capacity} attendees)
               </span>
@@ -354,7 +350,6 @@ export default function EventDetails() {
 
               {event.end_time && (
                 <div style={S.detailCard}>
-                  <div style={S.detailIcon}>🕐</div>
                   <div>
                     <div style={S.detailLabel}>End Time</div>
                     <div style={S.detailValue}>{new Date(event.end_time).toLocaleString()}</div>
@@ -364,7 +359,6 @@ export default function EventDetails() {
 
               {event.location_name && (
                 <div style={S.detailCard}>
-                  <div style={S.detailIcon}>📍</div>
                   <div>
                     <div style={S.detailLabel}>Location</div>
                     <div style={S.detailValue}>{event.location_name}</div>
@@ -445,7 +439,7 @@ export default function EventDetails() {
       {showDeleteModal && (
         <div style={S.modalOverlay} onClick={() => setShowDeleteModal(false)}>
           <div style={S.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={S.modalIcon}>⚠️</div>
+            <div style={S.modalIcon}>!</div>
             <h2 style={S.modalTitle}>Delete Event?</h2>
             <p style={S.modalText}>
               Are you sure you want to delete <strong>"{event.title}"</strong>?

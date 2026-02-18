@@ -18,19 +18,18 @@ const DEFAULT_CENTER = [53.3811, -6.5923];
 
 // ─── Category config ──────────────────────────────────────────────────────────
 const CATS = {
-  Music:   { color: "#f97316", emoji: "🎵" },
-  Food:    { color: "#22c55e", emoji: "🍔" },
-  Comedy:  { color: "#a855f7", emoji: "🎤" },
-  Fitness: { color: "#06b6d4", emoji: "🏃" },
-  Biz:     { color: "#f59e0b", emoji: "💼" },
-  Film:    { color: "#ec4899", emoji: "🎬" },
-  Art:     { color: "#8b5cf6", emoji: "🎨" },
-  Other:   { color: "#64748b", emoji: "📍" },
+  Music:   { color: "#f97316" },
+  Food:    { color: "#22c55e" },
+  Comedy:  { color: "#a855f7" },
+  Fitness: { color: "#06b6d4" },
+  Biz:     { color: "#f59e0b" },
+  Film:    { color: "#ec4899" },
+  Art:     { color: "#8b5cf6" },
+  Other:   { color: "#64748b" },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function catColor(cat) { return (CATS[cat] ?? CATS.Other).color; }
-function catEmoji(cat) { return (CATS[cat] ?? CATS.Other).emoji; }
 
 function makeCustomIcon(color, pulse = false) {
   const size = pulse ? 46 : 38;
@@ -86,7 +85,7 @@ function EventCard({ ev, onFocus }) {
       <div style={{ ...CS.chipDot, background: color, boxShadow: `0 0 10px ${color}88` }} />
       <div style={CS.chipInfo}>
         <div style={CS.chipName}>{ev.title}</div>
-        <div style={CS.chipMeta}>{catEmoji(ev.category_name ?? "Other")} {ev.category_name ?? "Event"} · {ev.location_name ?? "See map"}</div>
+        <div style={CS.chipMeta}>{ev.category_name ?? "Event"} · {ev.location_name ?? "See map"}</div>
       </div>
       <div style={{ ...CS.chipBadge, color }}>→</div>
     </div>
@@ -117,6 +116,16 @@ function CreatePanel({ picked, onSubmit, loading, error, onClear, categories }) 
       ? new Date(`${form.end_date}T${form.end_time}`).toISOString() 
       : "";
     
+    // Debug: Log the dates to console
+    console.log("Form data:", { 
+      start_date: form.start_date, 
+      start_time: form.start_time,
+      end_date: form.end_date,
+      end_time: form.end_time,
+      start_datetime,
+      end_datetime
+    });
+    
     const submissionData = {
       title: form.title,
       description: form.description,
@@ -128,6 +137,8 @@ function CreatePanel({ picked, onSubmit, loading, error, onClear, categories }) 
       start_time: start_datetime,
       end_time: end_datetime,
     };
+    
+    console.log("Submission data:", submissionData);
     
     onSubmit(submissionData, () => setForm({ 
       title: "", description: "", 
@@ -141,11 +152,10 @@ function CreatePanel({ picked, onSubmit, loading, error, onClear, categories }) 
     <form onSubmit={submit} style={CS.createForm}>
       <div style={CS.createHeader}>
         <span style={CS.createTitle}>New Event</span>
-        {picked && <button type="button" onClick={onClear} style={CS.clearBtn}>✕ Clear pin</button>}
+        {picked && <button type="button" onClick={onClear} style={CS.clearBtn}>Clear pin</button>}
       </div>
 
       <div style={{ ...CS.pickHint, background: picked ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.04)", borderColor: picked ? "#166534" : "#1e2535" }}>
-        <span style={{ fontSize: 16 }}>{picked ? "📍" : "🗺"}</span>
         <span style={{ color: picked ? "#86efac" : "#475569", fontSize: 12 }}>
           {picked ? `${picked.lat.toFixed(5)}, ${picked.lng.toFixed(5)}` : "Click the map to drop a pin"}
         </span>
@@ -174,7 +184,7 @@ function CreatePanel({ picked, onSubmit, loading, error, onClear, categories }) 
           <option value="">Select a category...</option>
           {categories.map((cat) => (
             <option key={cat.id} value={cat.id}>
-              {catEmoji(cat.name)} {cat.name}
+              {cat.name}
             </option>
           ))}
         </select>
@@ -247,7 +257,7 @@ function CreatePanel({ picked, onSubmit, loading, error, onClear, categories }) 
       {error && <div style={CS.errBox}>{error}</div>}
 
       <button type="submit" disabled={loading || !picked} style={{ ...CS.submitBtn, opacity: (!picked || loading) ? 0.4 : 1, cursor: (!picked || loading) ? "not-allowed" : "pointer" }}>
-        {loading ? "Creating…" : "🎉 Create Event"}
+        {loading ? "Creating..." : "Create Event"}
       </button>
     </form>
   );
@@ -305,19 +315,61 @@ export default function Home() {
   // ── Create event ──
   const handleCreate = async (form, resetForm) => {
     if (!picked) return;
-    const access = localStorage.getItem("access");
+    let access = localStorage.getItem("access");
     if (!access) { setCreateError("You must be signed in to create an event."); return; }
+    
     setCreateLoading(true);
     setCreateError("");
+    
     try {
-      const res = await fetch(`${API}/events/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${access}` },
-        body: JSON.stringify({ ...form, lat: picked.lat, lng: picked.lng, capacity: Number(form.capacity) }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+      // Helper function to make API call
+      const makeRequest = async (accessToken) => {
+        const res = await fetch(`${API}/events/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ ...form, lat: picked.lat, lng: picked.lng, capacity: Number(form.capacity) }),
+        });
+        return res;
+      };
+
+      let res = await makeRequest(access);
+      
+      // If token is expired, try to refresh it
+      if (res.status === 401) {
+        const refresh = localStorage.getItem("refresh");
+        if (!refresh) {
+          setCreateError("Your session has expired. Please sign in again.");
+          return;
+        }
         
+        try {
+          // Try to refresh the token
+          const refreshRes = await fetch(`${API}/auth/token/refresh/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh }),
+          });
+          
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            access = refreshData.access;
+            localStorage.setItem("access", access);
+            // Retry the original request with new token
+            res = await makeRequest(access);
+          } else {
+            setCreateError("Your session has expired. Please sign in again.");
+            return;
+          }
+        } catch (refreshError) {
+          setCreateError("Your session has expired. Please sign in again.");
+          return;
+        }
+      }
+      
+      const body = await res.json().catch(() => ({}));
+      console.log("API Response:", { status: res.status, body });
+      
+      if (!res.ok) {
         // Convert technical errors to user-friendly messages
         const errors = [];
         
@@ -360,13 +412,14 @@ export default function Home() {
         
         const errorMsg = errors.length > 0 
           ? errors.join(". ") 
-          : "Unable to create event. Please check all fields.";
+          : `Unable to create event. Server error: ${JSON.stringify(body)}`;
         
         throw new Error(errorMsg);
       }
       setPicked(null);
       setCreateMode(false);
       setPanel("events");
+      setSelectedCategories([]); // Clear filters to show new event
       resetForm();
       await fetchEvents();
     } catch (e) {
@@ -397,6 +450,11 @@ export default function Home() {
     ? events.filter((e) => selectedCategories.includes(e.category))
     : events;
   const mappableEvents = filteredEvents.filter((e) => typeof e.lat === "number" && typeof e.lng === "number");
+  
+  // Debug logging
+  console.log("Events:", events);
+  console.log("Selected categories:", selectedCategories);
+  console.log("Filtered events:", filteredEvents);
 
   return (
     <div style={CS.page}>
@@ -429,7 +487,7 @@ export default function Home() {
             <div style={CS.logoDot} />
             <span style={CS.logoWord}>Shout<span style={{ color: "#f97316" }}>Me</span></span>
             {user ? (
-              <span style={CS.userBadge}>👤 {user.username}</span>
+              <span style={CS.userBadge}>{user.username}</span>
             ) : (
               <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                 <Link to="/login" style={CS.authLink}>Sign In</Link>
@@ -477,7 +535,7 @@ export default function Home() {
                           color: selectedCategories.includes(cat.id) ? "#fff" : "#94a3b8",
                         }}
                       >
-                        {catEmoji(cat.name)} {cat.name}
+                        {cat.name}
                       </button>
                     ))}
                   </div>
@@ -499,7 +557,7 @@ export default function Home() {
               )}
               {status === "error" && (
                 <div style={CS.errorBox}>
-                  <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠ Could not load events</div>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>Could not load events</div>
                   <div style={{ fontSize: 12, opacity: 0.8 }}>{apiError}</div>
                   <button onClick={fetchEvents} style={{ marginTop: 10, background: "#f97316", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Retry</button>
                 </div>
@@ -549,9 +607,9 @@ export default function Home() {
                     <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color, marginBottom: 4 }}>{ev.category_name ?? "Event"}</div>
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "#fff", marginBottom: 6 }}>{ev.title}</div>
                     <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.7 }}>
-                      {ev.location_name && <div>📍 {ev.location_name}</div>}
-                      {ev.start_time    && <div>🕐 {new Date(ev.start_time).toLocaleString()}</div>}
-                      {ev.capacity      && <div>👥 Capacity: {ev.capacity}</div>}
+                      {ev.location_name && <div>{ev.location_name}</div>}
+                      {ev.start_time    && <div>{new Date(ev.start_time).toLocaleString()}</div>}
+                      {ev.capacity      && <div>Capacity: {ev.capacity}</div>}
                     </div>
                     {ev.description && <div style={{ marginTop: 8, fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{ev.description.slice(0, 120)}{ev.description.length > 120 ? "…" : ""}</div>}
                   </div>
@@ -567,7 +625,7 @@ export default function Home() {
         </MapContainer>
         {createMode && (
           <div style={CS.mapHint}>
-            <span style={{ fontSize: 18 }}>📍</span> Click anywhere on the map to drop your event pin
+            Click anywhere on the map to drop your event pin
           </div>
         )}
       </div>
