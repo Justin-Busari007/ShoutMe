@@ -67,6 +67,5 @@
         - Category
         - Date & Time
         - Location
-
     - Submit the form.
     - The event will appear on the map and event list.
