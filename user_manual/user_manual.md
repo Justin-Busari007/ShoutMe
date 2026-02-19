@@ -23,6 +23,8 @@
   - Click **Register** to create your account.
   - Once registration is successful, you may proceed to log in.
 
+  ![alt text](image-1.png)
+
 ---
 
 - **3. Logging In**
