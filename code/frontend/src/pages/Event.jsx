@@ -31,11 +31,16 @@ export default function Event() {
   const navigate = useNavigate();
 
   const [event, setEvent] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({});
 
   // Get current user
   const user = (() => {
@@ -50,23 +55,46 @@ export default function Event() {
   const isJoined = user && event && event.is_joined === true;
   const isFull = event && event.capacity && event.attendee_count >= event.capacity;
 
-  // Fetch event details
+  // Sign out
+  const handleSignOut = () => {
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
+  // Auto sign out on expired session
+  const handleExpiredSession = () => {
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    localStorage.removeItem("user");
+    alert("Your session has expired. Please sign in again.");
+    navigate("/login");
+  };
+
+  // Fetch event details and categories
   useEffect(() => {
-    async function fetchEvent() {
+    async function fetchData() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`${API}/events/${id}/`);
-        if (!res.ok) throw new Error(`Event not found`);
-        const data = await res.json();
-        setEvent(data);
+        // Fetch event
+        const eventRes = await fetch(`${API}/events/${id}/`);
+        if (!eventRes.ok) throw new Error(`Event not found`);
+        const eventData = await eventRes.json();
+        setEvent(eventData);
+        
+        // Fetch categories
+        const catRes = await fetch(`${API}/categories/`);
+        const catData = await catRes.json();
+        setCategories(catData);
       } catch (e) {
         setError(e.message || "Failed to load event");
       } finally {
         setLoading(false);
       }
     }
-    fetchEvent();
+    fetchData();
   }, [id]);
 
   // Join Event
@@ -98,6 +126,11 @@ export default function Event() {
         method: "POST",
         headers: { Authorization: `Bearer ${access}` },
       });
+
+      if (res.status === 401) {
+        handleExpiredSession();
+        return;
+      }
 
       if (!res.ok) throw new Error("Failed to join event");
       
@@ -131,9 +164,148 @@ export default function Event() {
         headers: { Authorization: `Bearer ${access}` },
       });
 
+      if (res.status === 401) {
+        handleExpiredSession();
+        return;
+      }
+
       if (!res.ok) throw new Error("Failed to leave event");
       
       setActionSuccess("You have left the event.");
+      // Refresh event data
+      const eventRes = await fetch(`${API}/events/${id}/`);
+      const data = await eventRes.json();
+      setEvent(data);
+    } catch (e) {
+      setActionError(e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // Kick User (Host only)
+  async function handleKick(userId, username) {
+    if (!isHost) return;
+    
+    if (!confirm(`Are you sure you want to kick ${username} from this event?`)) {
+      return;
+    }
+
+    setActionLoading(true);
+    setActionError("");
+    setActionSuccess("");
+
+    try {
+      const access = localStorage.getItem("access");
+      const res = await fetch(`${API}/events/${id}/kick/`, {
+        method: "POST",
+        headers: { 
+          Authorization: `Bearer ${access}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ user_id: userId })
+      });
+
+      if (res.status === 401) {
+        handleExpiredSession();
+        return;
+      }
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to kick user");
+      }
+      
+      setActionSuccess(`${username} has been kicked from the event.`);
+      // Refresh event data
+      const eventRes = await fetch(`${API}/events/${id}/`);
+      const data = await eventRes.json();
+      setEvent(data);
+    } catch (e) {
+      setActionError(e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // Enable Edit Mode
+  function enableEditMode() {
+    if (!isHost || !event) return;
+    
+    setEditForm({
+      title: event.title || "",
+      description: event.description || "",
+      location_name: event.location_name || "",
+      address: event.address || "",
+      capacity: event.capacity || "",
+      start_time: event.start_time ? event.start_time.slice(0, 16) : "",
+      end_time: event.end_time ? event.end_time.slice(0, 16) : "",
+      category: event.category_id || "",
+    });
+    setIsEditMode(true);
+    setActionError("");
+    setActionSuccess("");
+  }
+
+  // Cancel Edit Mode
+  function cancelEdit() {
+    setIsEditMode(false);
+    setEditForm({});
+    setActionError("");
+    setActionSuccess("");
+  }
+
+  // Save Event Changes
+  async function handleSaveEdit() {
+    if (!isHost) return;
+
+    setActionLoading(true);
+    setActionError("");
+    setActionSuccess("");
+
+    try {
+      const access = localStorage.getItem("access");
+      
+      // Build update payload
+      const payload = {
+        title: editForm.title,
+        description: editForm.description,
+        location_name: editForm.location_name,
+        address: editForm.address,
+        capacity: editForm.capacity ? parseInt(editForm.capacity) : null,
+        category: editForm.category || null,
+      };
+
+      // Add times if provided
+      if (editForm.start_time) {
+        payload.start_time = new Date(editForm.start_time).toISOString();
+      }
+      if (editForm.end_time) {
+        payload.end_time = new Date(editForm.end_time).toISOString();
+      }
+
+      const res = await fetch(`${API}/events/${id}/`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${access}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.status === 401) {
+        handleExpiredSession();
+        return;
+      }
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to update event");
+      }
+
+      setActionSuccess("Event updated successfully!");
+      setIsEditMode(false);
+      
       // Refresh event data
       const eventRes = await fetch(`${API}/events/${id}/`);
       const data = await eventRes.json();
@@ -188,7 +360,14 @@ export default function Event() {
           <div style={S.logoDot} />
           <span style={S.logoWord}>Shout<span style={{ color: "#f97316" }}>Me</span></span>
         </div>
-        <div style={{ width: 80 }} />
+        {user ? (
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <span style={S.userBadge}>{user.username}</span>
+            <button onClick={handleSignOut} style={S.signOutBtn}>Sign Out</button>
+          </div>
+        ) : (
+          <div style={{ width: 80 }} />
+        )}
       </div>
 
       {/* Content */}
@@ -196,12 +375,27 @@ export default function Event() {
         {/* Left: Event Details */}
         <div style={S.detailsPanel}>
           {/* Category Badge */}
-          <div style={{ ...S.categoryBadge, background: color }}>
-            {event.category_name || "Event"}
-          </div>
+          {!isEditMode && (
+            <div style={{ ...S.categoryBadge, background: color }}>
+              {event.category_name || "Event"}
+            </div>
+          )}
 
           {/* Title */}
-          <h1 style={S.title}>{event.title}</h1>
+          {!isEditMode ? (
+            <h1 style={S.title}>{event.title}</h1>
+          ) : (
+            <div style={{ marginBottom: 20 }}>
+              <label style={S.inputLabel}>Event Title</label>
+              <input
+                type="text"
+                value={editForm.title}
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                style={S.input}
+                placeholder="Enter event title"
+              />
+            </div>
+          )}
 
           {/* Host & Attendees */}
           <div style={S.metaRow}>
@@ -219,14 +413,43 @@ export default function Event() {
           </div>
 
           {/* Capacity Warning */}
-          {isFull && (
+          {isFull && !isEditMode && (
             <div style={S.warningBox}>
               This event is at full capacity ({event.capacity} attendees)
             </div>
           )}
 
-          {/* Action Buttons */}
-          {!isHost && user && (
+          {/* Host Controls: Edit Button */}
+          {isHost && !isEditMode && (
+            <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
+              <button onClick={enableEditMode} style={S.primaryBtn}>
+                Edit Event
+              </button>
+            </div>
+          )}
+
+          {/* Edit Mode: Save/Cancel Buttons */}
+          {isHost && isEditMode && (
+            <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
+              <button 
+                onClick={handleSaveEdit} 
+                disabled={actionLoading}
+                style={{ ...S.primaryBtn, opacity: actionLoading ? 0.5 : 1 }}
+              >
+                {actionLoading ? "Saving..." : "Save Changes"}
+              </button>
+              <button 
+                onClick={cancelEdit} 
+                disabled={actionLoading}
+                style={S.secondaryBtn}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Action Buttons for Non-Hosts */}
+          {!isHost && user && !isEditMode && (
             <div style={{ marginTop: 20 }}>
               {!isJoined ? (
                 <button
@@ -255,7 +478,7 @@ export default function Event() {
             </div>
           )}
 
-          {!user && (
+          {!user && !isEditMode && (
             <div style={S.infoBox}>
               <Link to="/login" style={{ color: "#f97316", textDecoration: "none" }}>Sign in</Link> to join this event
             </div>
@@ -265,50 +488,158 @@ export default function Event() {
           {actionSuccess && <div style={S.successBox}>{actionSuccess}</div>}
           {actionError && <div style={S.errorMsg}>{actionError}</div>}
 
-          {/* Event Details */}
-          <div style={S.detailsSection}>
-            <h3 style={S.sectionTitle}>Event Details</h3>
+          {/* Event Details or Edit Form */}
+          {!isEditMode ? (
+            <>
+              <div style={S.detailsSection}>
+                <h3 style={S.sectionTitle}>Event Details</h3>
 
-            {event.start_time && (
-              <div style={S.detailRow}>
-                <span style={S.detailLabel}>Start Time</span>
-                <span style={S.detailValue}>{new Date(event.start_time).toLocaleString()}</span>
+                {event.start_time && (
+                  <div style={S.detailRow}>
+                    <span style={S.detailLabel}>Start Time</span>
+                    <span style={S.detailValue}>{new Date(event.start_time).toLocaleString()}</span>
+                  </div>
+                )}
+
+                {event.end_time && (
+                  <div style={S.detailRow}>
+                    <span style={S.detailLabel}>End Time</span>
+                    <span style={S.detailValue}>{new Date(event.end_time).toLocaleString()}</span>
+                  </div>
+                )}
+
+                {event.location_name && (
+                  <div style={S.detailRow}>
+                    <span style={S.detailLabel}>Location</span>
+                    <span style={S.detailValue}>{event.location_name}</span>
+                  </div>
+                )}
+
+                {event.address && (
+                  <div style={S.detailRow}>
+                    <span style={S.detailLabel}>Address</span>
+                    <span style={S.detailValue}>{event.address}</span>
+                  </div>
+                )}
               </div>
-            )}
 
-            {event.end_time && (
-              <div style={S.detailRow}>
-                <span style={S.detailLabel}>End Time</span>
-                <span style={S.detailValue}>{new Date(event.end_time).toLocaleString()}</span>
+              {/* Description */}
+              {event.description && (
+                <div style={S.descriptionSection}>
+                  <h3 style={S.sectionTitle}>Description</h3>
+                  <p style={S.description}>{event.description}</p>
+                </div>
+              )}
+
+              {/* Attendee List (Host only) */}
+              {isHost && event.attendees && event.attendees.length > 0 && (
+                <div style={S.attendeesSection}>
+                  <h3 style={S.sectionTitle}>Attendees ({event.attendees.length})</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {event.attendees.map((attendee) => (
+                      <div key={attendee.id} style={S.attendeeItem}>
+                        <span style={S.attendeeName}>{attendee.username}</span>
+                        <button
+                          onClick={() => handleKick(attendee.id, attendee.username)}
+                          disabled={actionLoading}
+                          style={S.kickBtn}
+                        >
+                          Kick
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            /* Edit Form */
+            <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 20 }}>
+              <div>
+                <label style={S.inputLabel}>Category</label>
+                <select
+                  value={editForm.category}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                  style={S.select}
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
 
-            {event.location_name && (
-              <div style={S.detailRow}>
-                <span style={S.detailLabel}>Location</span>
-                <span style={S.detailValue}>{event.location_name}</span>
+              <div>
+                <label style={S.inputLabel}>Description</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  style={{ ...S.input, minHeight: 100, resize: "vertical" }}
+                  placeholder="Describe your event"
+                />
               </div>
-            )}
 
-            {event.address && (
-              <div style={S.detailRow}>
-                <span style={S.detailLabel}>Address</span>
-                <span style={S.detailValue}>{event.address}</span>
+              <div>
+                <label style={S.inputLabel}>Location Name</label>
+                <input
+                  type="text"
+                  value={editForm.location_name}
+                  onChange={(e) => setEditForm({ ...editForm, location_name: e.target.value })}
+                  style={S.input}
+                  placeholder="e.g., Central Park"
+                />
               </div>
-            )}
-          </div>
 
-          {/* Description */}
-          {event.description && (
-            <div style={S.descriptionSection}>
-              <h3 style={S.sectionTitle}>Description</h3>
-              <p style={S.description}>{event.description}</p>
+              <div>
+                <label style={S.inputLabel}>Address</label>
+                <input
+                  type="text"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  style={S.input}
+                  placeholder="Street address"
+                />
+              </div>
+
+              <div>
+                <label style={S.inputLabel}>Capacity (max attendees)</label>
+                <input
+                  type="number"
+                  value={editForm.capacity}
+                  onChange={(e) => setEditForm({ ...editForm, capacity: e.target.value })}
+                  style={S.input}
+                  placeholder="Leave blank for unlimited"
+                  min="1"
+                />
+              </div>
+
+              <div>
+                <label style={S.inputLabel}>Start Time</label>
+                <input
+                  type="datetime-local"
+                  value={editForm.start_time}
+                  onChange={(e) => setEditForm({ ...editForm, start_time: e.target.value })}
+                  style={S.input}
+                />
+              </div>
+
+              <div>
+                <label style={S.inputLabel}>End Time</label>
+                <input
+                  type="datetime-local"
+                  value={editForm.end_time}
+                  onChange={(e) => setEditForm({ ...editForm, end_time: e.target.value })}
+                  style={S.input}
+                />
+              </div>
             </div>
           )}
         </div>
 
         {/* Right: Map */}
-        {hasLocation && (
+        {hasLocation && !isEditMode && (
           <div style={S.mapPanel}>
             <MapContainer
               center={[event.lat, event.lng]}
@@ -335,6 +666,8 @@ const S = {
   logo: { display: "flex", alignItems: "center", gap: 10 },
   logoDot: { width: 10, height: 10, borderRadius: "50%", background: "#f97316", boxShadow: "0 0 12px #f97316" },
   logoWord: { fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: "#fff", letterSpacing: "0.06em" },
+  userBadge: { fontSize: 11, color: "#64748b", background: "#0f1219", border: "1px solid #1e2535", borderRadius: 20, padding: "3px 10px" },
+  signOutBtn: { fontSize: 11, color: "#94a3b8", background: "transparent", border: "1px solid #1e2535", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, transition: "color 0.2s, background 0.2s, border-color 0.2s" },
   
   content: { display: "grid", gridTemplateColumns: "1fr 500px", gap: 40, padding: "40px", maxWidth: 1400, margin: "0 auto" },
   detailsPanel: { display: "flex", flexDirection: "column", gap: 20 },
@@ -352,8 +685,8 @@ const S = {
   successBox: { padding: 14, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 12, color: "#86efac", fontSize: 14 },
   errorMsg: { padding: 14, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12, color: "#fca5a5", fontSize: 14 },
   
-  primaryBtn: { width: "100%", padding: 16, background: "#f97316", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, transition: "transform 0.1s, opacity 0.2s", fontFamily: "inherit" },
-  secondaryBtn: { width: "100%", padding: 16, background: "rgba(255,255,255,0.05)", color: "#e2e8f0", border: "1px solid #1e2535", borderRadius: 12, fontSize: 16, fontWeight: 700, transition: "transform 0.1s, opacity 0.2s", fontFamily: "inherit" },
+  primaryBtn: { width: "100%", padding: 16, background: "#f97316", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, transition: "transform 0.1s, opacity 0.2s", fontFamily: "inherit", cursor: "pointer" },
+  secondaryBtn: { width: "100%", padding: 16, background: "rgba(255,255,255,0.05)", color: "#e2e8f0", border: "1px solid #1e2535", borderRadius: 12, fontSize: 16, fontWeight: 700, transition: "transform 0.1s, opacity 0.2s", fontFamily: "inherit", cursor: "pointer" },
   
   detailsSection: { display: "flex", flexDirection: "column", gap: 16, padding: "24px 0", borderTop: "1px solid #1e2535" },
   sectionTitle: { fontSize: 14, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#64748b", margin: 0 },
@@ -363,6 +696,15 @@ const S = {
   
   descriptionSection: { display: "flex", flexDirection: "column", gap: 12 },
   description: { fontSize: 15, lineHeight: 1.7, color: "#94a3b8", margin: 0 },
+  
+  attendeesSection: { display: "flex", flexDirection: "column", gap: 16, padding: "24px 0", borderTop: "1px solid #1e2535" },
+  attendeeItem: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12, background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid #1e2535" },
+  attendeeName: { fontSize: 14, color: "#e2e8f0", fontWeight: 500 },
+  kickBtn: { padding: "6px 16px", background: "rgba(239,68,68,0.1)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "background 0.2s", fontFamily: "inherit" },
+  
+  inputLabel: { display: "block", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 },
+  input: { width: "100%", padding: 12, background: "rgba(255,255,255,0.03)", border: "1px solid #1e2535", borderRadius: 8, color: "#e2e8f0", fontSize: 14, fontFamily: "inherit", outline: "none", transition: "border 0.2s" },
+  select: { width: "100%", padding: 12, background: "rgba(255,255,255,0.03)", border: "1px solid #1e2535", borderRadius: 8, color: "#e2e8f0", fontSize: 14, fontFamily: "inherit", outline: "none", transition: "border 0.2s", cursor: "pointer" },
   
   mapPanel: { height: 600, borderRadius: 16, overflow: "hidden", border: "1px solid #1e2535" },
   

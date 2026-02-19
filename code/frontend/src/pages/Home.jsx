@@ -280,6 +280,23 @@ export default function Home() {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const user = useMemo(() => { try { return JSON.parse(localStorage.getItem("user") ?? "null"); } catch { return null; } }, []);
 
+  // ── Sign out ──
+  const handleSignOut = () => {
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
+  // ── Auto sign out on expired session ──
+  const handleExpiredSession = () => {
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    localStorage.removeItem("user");
+    alert("Your session has expired. Please sign in again.");
+    navigate("/login");
+  };
+
   // ── Fetch categories ──
   const fetchCategories = useCallback(async () => {
     try {
@@ -339,6 +356,8 @@ export default function Home() {
         const refresh = localStorage.getItem("refresh");
         if (!refresh) {
           setCreateError("Your session has expired. Please sign in again.");
+          setCreateLoading(false);
+          handleExpiredSession();
           return;
         }
         
@@ -498,7 +517,10 @@ export default function Home() {
             <div style={CS.logoDot} />
             <span style={CS.logoWord}>Shout<span style={{ color: "#f97316" }}>Me</span></span>
             {user ? (
-              <span style={CS.userBadge}>{user.username}</span>
+              <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
+                <span style={CS.userBadge}>{user.username}</span>
+                <button onClick={handleSignOut} style={CS.signOutBtn}>Sign Out</button>
+              </div>
             ) : (
               <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                 <Link to="/login" style={CS.authLink}>Sign In</Link>
@@ -658,6 +680,7 @@ const CS = {
   logoDot:   { width: 9, height: 9, borderRadius: "50%", background: "#f97316", boxShadow: "0 0 10px #f97316aa", animation: "pulseRing 2s ease-out infinite" },
   logoWord:  { fontFamily: "'Bebas Neue', 'Arial Black', sans-serif", fontSize: 26, color: "#fff", letterSpacing: "0.06em" },
   userBadge: { marginLeft: "auto", fontSize: 11, color: "#64748b", background: "#0f1219", border: "1px solid #1e2535", borderRadius: 20, padding: "3px 10px" },
+  signOutBtn: { fontSize: 11, color: "#94a3b8", background: "transparent", border: "1px solid #1e2535", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, transition: "color 0.2s, background 0.2s, border-color 0.2s" },
   authLink:  { fontSize: 13, color: "#94a3b8", textDecoration: "none", fontWeight: 600, padding: "6px 12px", borderRadius: 8, transition: "color 0.2s, background 0.2s", background: "transparent", border: "1px solid #1e2535" },
   authLinkPrimary: { fontSize: 13, color: "#fff", textDecoration: "none", fontWeight: 600, padding: "6px 12px", borderRadius: 8, transition: "background 0.2s, transform 0.1s", background: "#f97316", border: "none" },
   tagline:   { color: "#334155", fontSize: 12, margin: "0 0 16px" },
