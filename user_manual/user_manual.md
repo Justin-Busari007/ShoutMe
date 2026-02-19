@@ -34,6 +34,8 @@
   - Upon successful authentication, you will be redirected to the Home page.
   - If incorrect credentials are entered, an error message will be displayed.
 
+  ![alt text](image-2.png)
+
 ---
 
 - **4. Home Page**
@@ -49,6 +51,7 @@
     - Use the zoom controls to adjust the map view.
     - Events are positioned according to their geographic location.
 
+  ![alt text](image-3.png)
 ---
 
 - **5. Filtering by Category**
@@ -56,6 +59,8 @@
   - Select a category (e.g., Music, Sports, Comedy, Art).
   - The displayed events will automatically update to reflect the selected category.
   - To view all events again, clear or reset the filter.
+
+  ![alt text](image-4.png)
 
 ---
 
@@ -68,6 +73,8 @@
     - Date and Time
     - Location
     - Category
+
+  ![alt text](image-5.png)
 
 ---
 
@@ -82,3 +89,5 @@
   - Review the entered information for accuracy.
   - Click **Submit** to publish the event.
   - Once successfully created, the event will be visible on both the interactive map and the event listing section.
+
+  ![alt text](image-6.png)
