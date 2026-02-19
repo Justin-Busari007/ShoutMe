@@ -447,7 +447,18 @@ export default function Home() {
 
   // ── Derived ──
   const filteredEvents = selectedCategories.length > 0
-    ? events.filter((e) => selectedCategories.includes(e.category))
+    ? events.filter((e) => {
+        // Match by category ID or category name
+        return selectedCategories.some((catId) => {
+          // Find category object by ID
+          const catObj = categories.find((c) => c.id === catId);
+          // Match event.category (number) or event.category_name (string)
+          return (
+            e.category === catId ||
+            (catObj && (e.category_name === catObj.name))
+          );
+        });
+      })
     : events;
   const mappableEvents = filteredEvents.filter((e) => typeof e.lat === "number" && typeof e.lng === "number");
   
