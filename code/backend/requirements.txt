@@ -1,0 +1,39 @@
+altgraph @ file:///System/Volumes/Data/SWE/Apps/DT/BuildRoots/BuildRoot7/ActiveBuildRoot/Library/Caches/com.apple.xbs/Sources/python3/python3-133.100.1.1/altgraph-0.17.2-py2.py3-none-any.whl
+asgiref==3.8.1
+attrs==22.2.0
+certifi==2025.1.31
+dj-database-url==3.0.1
+Django==4.2.20
+django-cors-headers==3.14.0
+django-filter==25.1
+djangorestframework==3.14.0
+djangorestframework_simplejwt==5.5.1
+drf-spectacular==0.26.1
+drf-spectacular-sidecar==2023.3.1
+Faker==37.1.0
+future @ file:///System/Volumes/Data/SWE/Apps/DT/BuildRoots/BuildRoot7/ActiveBuildRoot/Library/Caches/com.apple.xbs/Sources/python3/python3-133.100.1.1/future-0.18.2-py3-none-any.whl
+gunicorn==23.0.0
+importlib_metadata==8.6.1
+inflection==0.5.1
+jsonschema==4.17.3
+macholib @ file:///System/Volumes/Data/SWE/Apps/DT/BuildRoots/BuildRoot7/ActiveBuildRoot/Library/Caches/com.apple.xbs/Sources/python3/python3-133.100.1.1/macholib-1.15.2-py2.py3-none-any.whl
+Markdown==3.4.3
+names==0.3.0
+numpy==1.24.2
+packaging==26.0
+pandas==1.5.3
+psycopg2-binary==2.9.11
+PyJWT==2.11.0
+pyparsing==3.0.9
+pyrsistent==0.19.3
+python-dateutil==2.8.2
+pytz==2023.2
+PyYAML==6.0
+six==1.16.0
+sqlparse==0.5.3
+typing_extensions==4.13.0
+tzdata==2025.2
+uritemplate==4.1.1
+whitenoise==6.11.0
+wincertstore==0.2
+zipp==3.21.0
