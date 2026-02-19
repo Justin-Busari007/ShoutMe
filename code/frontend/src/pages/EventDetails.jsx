@@ -57,11 +57,15 @@ export default function EventDetails() {
       setLoading(true);
       setError("");
       try {
+        console.log("Fetching event:", id);
         const res = await fetch(`${API}/events/${id}/`);
+        console.log("Response status:", res.status);
         if (!res.ok) throw new Error(`Event not found (${res.status})`);
         const data = await res.json();
+        console.log("Event data:", data);
         setEvent(data);
       } catch (e) {
+        console.error("Error fetching event:", e);
         setError(e.message || "Failed to load event");
       } finally {
         setLoading(false);
@@ -205,9 +209,18 @@ export default function EventDetails() {
     );
   }
 
-  if (!event) return null;
+  if (!event) {
+    return (
+      <div style={S.page}>
+        <div style={S.loader}>
+          <div style={S.spinner} />
+          <p style={{ marginTop: 16, color: "#64748b" }}>Loading event…</p>
+        </div>
+      </div>
+    );
+  }
 
-  const color = catColor(event.category ?? "Other");
+  const color = catColor(event.category_name ?? "Other");
   const hasLocation = typeof event.lat === "number" && typeof event.lng === "number";
 
   return (

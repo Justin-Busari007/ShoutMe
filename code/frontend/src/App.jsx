@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Home from './pages/Home';
 import Register from './pages/Register';
 import Login from './pages/Login';
-import EventDetails from './pages/EventDetails';
+import Event from './pages/Event';
 import './App.css';
 
 function App() {
@@ -17,7 +17,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         
         {/* Event details page */}
-        <Route path="/events/:id" element={<EventDetails />} />
+        <Route path="/events/:id" element={<Event />} />
         
         {/* Catch-all redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
