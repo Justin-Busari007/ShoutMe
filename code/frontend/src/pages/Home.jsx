@@ -519,6 +519,7 @@ export default function Home() {
             {user ? (
               <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
                 <span style={CS.userBadge}>{user.username}</span>
+                <Link to="/friends" style={CS.signOutBtn}>Friends</Link>
                 <button onClick={handleSignOut} style={CS.signOutBtn}>Sign Out</button>
               </div>
             ) : (

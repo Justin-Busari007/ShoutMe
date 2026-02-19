@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import Event from './pages/Event';
+import Friends from './pages/Friends';
 import './App.css';
 
 function App() {
@@ -15,6 +16,9 @@ function App() {
         {/* Auth pages */}
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        
+        {/* Friends page */}
+        <Route path="/friends" element={<Friends />} />
         
         {/* Event details page */}
         <Route path="/events/:id" element={<Event />} />
