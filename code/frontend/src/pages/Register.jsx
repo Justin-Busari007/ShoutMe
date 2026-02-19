@@ -45,7 +45,8 @@ export default function Register() {
     setMessage(null);
     setLoading(true);
     try {
-      const res = await axios.post("http://127.0.0.1:8000/api/auth/register/", form, {
+      const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+      const res = await axios.post(`${API_URL}/auth/register/`, form, {
         headers: { "Content-Type": "application/json" },
       });
       const { access, refresh } = res.data?.tokens ?? {};

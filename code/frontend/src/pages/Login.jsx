@@ -26,7 +26,8 @@ export default function Login() {
     setMessage(null);
     setLoading(true);
     try {
-      const res = await axios.post("http://127.0.0.1:8000/api/auth/login/", form, {
+      const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+      const res = await axios.post(`${API_URL}/auth/login/`, form, {
         headers: { "Content-Type": "application/json" },
       });
       const { access, refresh } = res.data?.tokens ?? {};
