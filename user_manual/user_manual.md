@@ -4,7 +4,9 @@ ShoutMe – End User Guide
 1. Overview
 
 ShoutMe is a location-based event discovery platform that allows users to:
+
 Discover nearby events
+
 Filter events by category
 View event details on a map
 Create an account
