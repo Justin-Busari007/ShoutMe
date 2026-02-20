@@ -37,6 +37,7 @@ export default function EventDetails() {
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [friendRequestSent, setFriendRequestSent] = useState(new Set());
 
   // Get current user
   const user = (() => {
@@ -182,6 +183,39 @@ export default function EventDetails() {
     } catch (e) {
       setActionError(e.message);
       setActionLoading(false);
+    }
+  }
+
+  // Send friend request to attendee
+  async function sendFriendRequest(userId) {
+    if (!user) {
+      setActionError("Please sign in to add friends");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("access");
+      const response = await fetch(`${API}/accounts/friend-request/send/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ to_user_id: userId })
+      });
+
+      if (response.ok) {
+        setFriendRequestSent(new Set([...friendRequestSent, userId]));
+        setActionSuccess('Friend request sent!');
+        setTimeout(() => setActionSuccess(''), 3000);
+      } else {
+        const data = await response.json();
+        setActionError(data.error || 'Failed to send request');
+        setTimeout(() => setActionError(''), 3000);
+      }
+    } catch (err) {
+      setActionError('Error sending friend request');
+      setTimeout(() => setActionError(''), 3000);
     }
   }
 
@@ -439,7 +473,25 @@ export default function EventDetails() {
                     <div style={S.attendeeAvatar}>
                       {attendee.username?.[0]?.toUpperCase() || "?"}
                     </div>
-                    <div style={S.attendeeName}>{attendee.username || "Unknown"}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={S.attendeeName}>{attendee.username || "Unknown"}</div>
+                      {attendee.email && (
+                        <div style={S.attendeeEmail}>{attendee.email}</div>
+                      )}
+                    </div>
+                    {user && user.id !== attendee.id && (
+                      <button
+                        onClick={() => sendFriendRequest(attendee.id)}
+                        disabled={friendRequestSent.has(attendee.id)}
+                        style={{
+                          ...S.addFriendBtn,
+                          opacity: friendRequestSent.has(attendee.id) ? 0.5 : 1,
+                          cursor: friendRequestSent.has(attendee.id) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        {friendRequestSent.has(attendee.id) ? '✓ Sent' : '+ Add Friend'}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -751,41 +803,61 @@ const S = {
   },
 
   attendeeGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+    display: "flex",
+    flexDirection: "column",
     gap: 12,
   },
 
   attendeeCard: {
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
     padding: 16,
     background: "#0d1117",
     border: "1px solid #1e2535",
     borderRadius: 10,
+    transition: "all 0.2s ease",
   },
 
   attendeeAvatar: {
-    width: 52,
-    height: 52,
+    width: 44,
+    height: 44,
     borderRadius: "50%",
     background: "#f97316",
     color: "#fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 700,
     fontFamily: "'Bebas Neue', sans-serif",
+    flexShrink: 0,
   },
 
   attendeeName: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#e2e8f0",
     fontWeight: 600,
-    textAlign: "center",
+    marginBottom: 2,
+  },
+
+  attendeeEmail: {
+    fontSize: 11,
+    color: "#64748b",
+  },
+
+  addFriendBtn: {
+    padding: "8px 14px",
+    background: "transparent",
+    border: "1px solid rgba(34, 197, 94, 0.3)",
+    color: "#86efac",
+    borderRadius: 6,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    whiteSpace: "nowrap",
   },
 
   loader: {

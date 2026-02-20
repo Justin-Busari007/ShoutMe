@@ -164,7 +164,12 @@ export default function Friends() {
 
   return (
     <div className="friends-container">
-      <h1>Friends</h1>
+      <div className="friends-header">
+        <button className="back-btn" onClick={() => window.history.back()}>
+          ← Back
+        </button>
+        <h1>Friends</h1>
+      </div>
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}

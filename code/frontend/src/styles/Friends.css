@@ -1,20 +1,75 @@
-.friends-container {
+/* Global page styles */
+html, body, #root {
+  margin: 0;
+  padding: 0;
   width: 100%;
+  height: 100%;
+  background: #0a0d12;
+  overflow-x: hidden;
+}
+
+.friends-container {
+  width: 100vw;
   min-height: 100vh;
-  padding: 32px;
+  margin: 0;
+  padding: 0;
   background: #0a0d12;
   display: flex;
   flex-direction: column;
+  position: relative;
+  left: 0;
+  right: 0;
+}
+
+/* Header with back button */
+.friends-header {
+  width: 100%;
+  padding: 32px;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 0;
+  background: #0a0d12;
+  border-bottom: 1px solid #1e2535;
+}
+
+.friends-header > * {
+  max-width: 1200px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.back-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #1e2535;
+  color: #e2e8f0;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #f97316;
+  color: #f97316;
 }
 
 .friends-container h1 {
   color: #e2e8f0;
-  margin-bottom: 30px;
-  text-align: center;
+  margin: 0;
+  flex: 1;
   font-family: 'Bebas Neue', 'Arial Black', sans-serif;
-  font-size: 32px;
-  letter-spacing: 0.06em;
+  font-size: 48px;
+  letter-spacing: 0.08em;
+  font-weight: 400;
+  text-transform: uppercase;
 }
 
 /* Main content wrapper */
@@ -31,6 +86,7 @@
   animation: slideIn 0.3s ease-in;
   font-size: 13px;
   font-weight: 500;
+  max-width: 900px;
 }
 
 .alert-error {
@@ -60,8 +116,14 @@
 .friends-tabs {
   display: flex;
   gap: 10px;
-  margin-bottom: 30px;
+  padding: 0;
+  margin: 0 auto 30px;
   border-bottom: 1px solid #1e2535;
+  background: #0a0d12;
+  width: 100%;
+  max-width: 1200px;
+  justify-content: flex-start;
+  padding-left: 32px;
 }
 
 .tab-btn {
@@ -91,23 +153,32 @@
   min-height: 400px;
   width: 100%;
   max-width: 1200px;
+  padding: 32px;
+  background: #0a0d12;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 /* Friends List & Cards */
 .friends-list,
 .requests-list,
 .users-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: 100%;
+  max-width: 900px;
 }
 
 .friend-card,
 .request-card,
 .user-card {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
   padding: 20px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid #1e2535;
@@ -126,7 +197,7 @@
 .request-info,
 .user-info {
   flex: 1;
-  margin-bottom: 15px;
+  margin-bottom: 0;
 }
 
 .friend-info h3,
@@ -160,15 +231,15 @@
 .btn-add-friend,
 .btn-accept,
 .btn-reject {
-  padding: 10px 14px;
+  padding: 10px 16px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   transition: all 0.2s ease;
   font-family: 'DM Sans', sans-serif;
-  width: 100%;
+  white-space: nowrap;
 }
 
 .btn-remove {
@@ -219,17 +290,19 @@
 /* Request Actions */
 .request-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
 }
 
 /* Add Friends Section */
 .add-friends-section {
   width: 100%;
+  max-width: 900px;
 }
 
 .search-box {
   margin-bottom: 25px;
+  width: 100%;
 }
 
 .search-input {
