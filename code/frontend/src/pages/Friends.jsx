@@ -55,8 +55,8 @@ export default function Friends() {
 
   const fetchAvailableUsers = async () => {
     try {
-      const query = searchQuery ? `?search=${searchQuery}` : '';
-      const response = await fetch(`${API}/accounts/users/available/${query}`, {
+      const query = searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : '';
+      const response = await fetch(`${API}/accounts/users/available${query}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error(`${response.status}`);
