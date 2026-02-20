@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import '../styles/Friends.css';
+import { getApiBase } from '../lib/api';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+const API = getApiBase();
 
 export default function Friends() {
   const [activeTab, setActiveTab] = useState('friends'); // friends, requests, add

@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { getApiBase } from "../lib/api";
 
 const MOCK_PINS = [
   { lat: 53.384, lng: -6.594, title: "Rooftop Jazz Night", cat: "Music", color: "#f97316" },
@@ -45,7 +46,7 @@ export default function Register() {
     setMessage(null);
     setLoading(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+      const API_URL = getApiBase();
       const res = await axios.post(`${API_URL}/auth/register/`, form, {
         headers: { "Content-Type": "application/json" },
       });

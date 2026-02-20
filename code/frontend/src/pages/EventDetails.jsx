@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { getApiBase } from "../lib/api";
 
 // Fix Leaflet icon paths
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -10,7 +11,7 @@ import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow });
 
-const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+const API = getApiBase();
 
 // Category config matching Home.jsx
 const CATS = {
