@@ -36,9 +36,7 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '.railway.app',
-    '.up.railway.app',
-    '.vercel.app',
+    '.onrender.com',
 ]
 
 
@@ -148,7 +146,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
-    "https://frontend-jpkwekzou-justin-busari007s-projects.vercel.app",
 ]
 
 
