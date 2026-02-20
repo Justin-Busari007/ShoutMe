@@ -52,9 +52,15 @@ export default function Event() {
     }
   })();
 
+  const getAuthHeaders = () => {
+    const access = localStorage.getItem("access");
+    return access ? { Authorization: `Bearer ${access}` } : {};
+  };
+
   const isHost = user && event && event.host_id === user.id;
   const isJoined = user && event && event.is_joined === true;
   const isFull = event && event.capacity && event.attendee_count >= event.capacity;
+  const isCancelled = event && event.is_cancelled === true;
 
   // Sign out
   const handleSignOut = () => {
@@ -80,7 +86,9 @@ export default function Event() {
       setError("");
       try {
         // Fetch event
-        const eventRes = await fetch(`${API}/events/${id}/`);
+        const eventRes = await fetch(`${API}/events/${id}/`, {
+          headers: { ...getAuthHeaders() },
+        });
         if (!eventRes.ok) throw new Error(`Event not found`);
         const eventData = await eventRes.json();
         setEvent(eventData);
@@ -137,7 +145,9 @@ export default function Event() {
       
       setActionSuccess("Successfully joined the event!");
       // Refresh event data
-      const eventRes = await fetch(`${API}/events/${id}/`);
+      const eventRes = await fetch(`${API}/events/${id}/`, {
+        headers: { ...getAuthHeaders() },
+      });
       const data = await eventRes.json();
       setEvent(data);
     } catch (e) {
@@ -174,7 +184,9 @@ export default function Event() {
       
       setActionSuccess("You have left the event.");
       // Refresh event data
-      const eventRes = await fetch(`${API}/events/${id}/`);
+      const eventRes = await fetch(`${API}/events/${id}/`, {
+        headers: { ...getAuthHeaders() },
+      });
       const data = await eventRes.json();
       setEvent(data);
     } catch (e) {
@@ -213,13 +225,60 @@ export default function Event() {
       }
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to kick user");
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to kick user");
+        }
+        const text = await res.text();
+        throw new Error(text || "Failed to kick user");
       }
       
       setActionSuccess(`${username} has been kicked from the event.`);
       // Refresh event data
       const eventRes = await fetch(`${API}/events/${id}/`);
+      const data = await eventRes.json();
+      setEvent(data);
+    } catch (e) {
+      setActionError(e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // Host: Cancel Event
+  async function handleCancel() {
+    if (!isHost) return;
+
+    if (!confirm("Are you sure you want to cancel this event? Attendees will be removed.")) {
+      return;
+    }
+
+    setActionLoading(true);
+    setActionError("");
+    setActionSuccess("");
+
+    try {
+      const access = localStorage.getItem("access");
+      const res = await fetch(`${API}/events/${id}/cancel/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${access}` },
+      });
+
+      if (res.status === 401) {
+        handleExpiredSession();
+        return;
+      }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || body.error || "Failed to cancel event");
+      }
+
+      setActionSuccess("Event cancelled.");
+      const eventRes = await fetch(`${API}/events/${id}/`, {
+        headers: { ...getAuthHeaders() },
+      });
       const data = await eventRes.json();
       setEvent(data);
     } catch (e) {
@@ -426,6 +485,13 @@ export default function Event() {
               <button onClick={enableEditMode} style={S.primaryBtn}>
                 Edit Event
               </button>
+              <button
+                onClick={handleCancel}
+                disabled={actionLoading || isCancelled}
+                style={{ ...S.secondaryBtn, opacity: (actionLoading || isCancelled) ? 0.5 : 1 }}
+              >
+                {isCancelled ? "Event Cancelled" : "Cancel Event"}
+              </button>
             </div>
           )}
 
@@ -452,7 +518,11 @@ export default function Event() {
           {/* Action Buttons for Non-Hosts */}
           {!isHost && user && !isEditMode && (
             <div style={{ marginTop: 20 }}>
-              {!isJoined ? (
+              {isCancelled ? (
+                <div style={S.infoBox}>
+                  This event has been cancelled by the host.
+                </div>
+              ) : !isJoined ? (
                 <button
                   onClick={handleJoin}
                   disabled={actionLoading || isFull}
@@ -486,6 +556,12 @@ export default function Event() {
           )}
 
           {/* Messages */}
+          {isCancelled && (
+            <div style={S.infoBox}>
+              This event has been cancelled by the host.
+            </div>
+          )}
+
           {actionSuccess && <div style={S.successBox}>{actionSuccess}</div>}
           {actionError && <div style={S.errorMsg}>{actionError}</div>}
 

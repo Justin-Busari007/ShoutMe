@@ -36,6 +36,7 @@ class Event(models.Model):
 
     capacity = models.PositiveIntegerField(default=50)
     is_public = models.BooleanField(default=True)
+    is_cancelled = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
 

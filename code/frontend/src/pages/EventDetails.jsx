@@ -40,6 +40,11 @@ export default function EventDetails() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(new Set());
 
+  const getAuthHeaders = () => {
+    const access = localStorage.getItem("access");
+    return access ? { Authorization: `Bearer ${access}` } : {};
+  };
+
   // Get current user
   const user = (() => {
     try {
@@ -52,6 +57,7 @@ export default function EventDetails() {
   const isHost = user && event && event.host_id === user.id;
   const isJoined = user && event && event.is_joined === true;
   const isFull = event && event.capacity && event.attendee_count >= event.capacity;
+  const isCancelled = event && event.is_cancelled === true;
 
   // Fetch event details
   useEffect(() => {
@@ -60,7 +66,9 @@ export default function EventDetails() {
       setError("");
       try {
         console.log("Fetching event:", id);
-        const res = await fetch(`${API}/events/${id}/`);
+        const res = await fetch(`${API}/events/${id}/`, {
+          headers: { ...getAuthHeaders() },
+        });
         console.log("Response status:", res.status);
         if (!res.ok) throw new Error(`Event not found (${res.status})`);
         const data = await res.json();
@@ -115,7 +123,9 @@ export default function EventDetails() {
       }
 
       // Refresh event to get updated attendee list
-      const updatedRes = await fetch(`${API}/events/${id}/`);
+      const updatedRes = await fetch(`${API}/events/${id}/`, {
+        headers: { ...getAuthHeaders() },
+      });
       const updatedData = await updatedRes.json();
       setEvent(updatedData);
 
@@ -151,7 +161,9 @@ export default function EventDetails() {
       }
 
       // Refresh event
-      const updatedRes = await fetch(`${API}/events/${id}/`);
+      const updatedRes = await fetch(`${API}/events/${id}/`, {
+        headers: { ...getAuthHeaders() },
+      });
       const updatedData = await updatedRes.json();
       setEvent(updatedData);
 
@@ -183,6 +195,44 @@ export default function EventDetails() {
       navigate("/");
     } catch (e) {
       setActionError(e.message);
+      setActionLoading(false);
+    }
+  }
+
+  // Host: Cancel Event
+  async function handleCancel() {
+    if (!isHost) return;
+
+    if (!confirm("Are you sure you want to cancel this event? Attendees will be removed.")) {
+      return;
+    }
+
+    setActionLoading(true);
+    setActionError("");
+    setActionSuccess("");
+
+    try {
+      const access = localStorage.getItem("access");
+      const res = await fetch(`${API}/events/${id}/cancel/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${access}` },
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || body.error || `Failed to cancel (${res.status})`);
+      }
+
+      const updatedRes = await fetch(`${API}/events/${id}/`, {
+        headers: { ...getAuthHeaders() },
+      });
+      const updatedData = await updatedRes.json();
+      setEvent(updatedData);
+
+      setActionSuccess("Event cancelled.");
+    } catch (e) {
+      setActionError(e.message);
+    } finally {
       setActionLoading(false);
     }
   }
@@ -330,7 +380,7 @@ export default function EventDetails() {
               </div>
             )}
 
-            {user && !isHost && !isJoined && (
+            {user && !isHost && !isJoined && !isCancelled && (
               <button
                 onClick={handleJoin}
                 disabled={actionLoading || isFull}
@@ -341,7 +391,7 @@ export default function EventDetails() {
               </button>
             )}
 
-            {user && !isHost && isJoined && (
+            {user && !isHost && isJoined && !isCancelled && (
               <button
                 onClick={handleLeave}
                 disabled={actionLoading}
@@ -362,6 +412,14 @@ export default function EventDetails() {
                   ✎ Edit Event
                 </button>
                 <button
+                  onClick={handleCancel}
+                  disabled={actionLoading || isCancelled}
+                  style={{ ...S.btnSecondary, flex: 1, opacity: (actionLoading || isCancelled) ? 0.45 : 1 }}
+                  className="action-btn"
+                >
+                  {isCancelled ? "🚫 Event Cancelled" : "⚠ Cancel Event"}
+                </button>
+                <button
                   onClick={() => setShowDeleteModal(true)}
                   style={{ ...S.btnDanger, flex: 1 }}
                   className="action-btn"
@@ -373,7 +431,15 @@ export default function EventDetails() {
           </div>
 
           {/* REQ-5.4: Capacity warning */}
-          {isFull && (
+          {isCancelled && (
+            <div style={{ ...S.infoBox, borderColor: "#f97316", background: "rgba(249,115,22,0.08)" }}>
+              <span style={{ fontSize: 14, color: "#fdba74" }}>
+                This event has been cancelled by the host.
+              </span>
+            </div>
+          )}
+
+          {isFull && !isCancelled && (
             <div style={{ ...S.infoBox, borderColor: "#f59e0b", background: "rgba(245,158,11,0.08)" }}>
               <span style={{ fontSize: 14, color: "#fbbf24" }}>
                 This event is at full capacity ({event.capacity} attendees)

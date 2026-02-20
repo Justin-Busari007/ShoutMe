@@ -20,6 +20,7 @@ class EventSerializer(serializers.ModelSerializer):
             "start_time", "end_time",
             "location_name", "address", "lat", "lng",
             "capacity", "is_public",
+            "is_cancelled",
             "created_at",
         ]
         read_only_fields = ["host", "created_at"]

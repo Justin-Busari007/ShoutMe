@@ -35,9 +35,9 @@ class EventViewSet(viewsets.ModelViewSet):
         qs = Event.objects.all().order_by("-created_at")
 
         if user.is_authenticated:
-            qs = qs.filter(Q(is_public=True) | Q(host=user))
+            qs = qs.filter(Q(is_public=True, is_cancelled=False) | Q(host=user))
         else:
-            qs = qs.filter(is_public=True)
+            qs = qs.filter(is_public=True, is_cancelled=False)
 
         # Radius filtering
         lat = self.request.query_params.get("lat")
@@ -107,6 +107,12 @@ class EventViewSet(viewsets.ModelViewSet):
         Enhanced response with all data needed by frontend.
         """
         event = self.get_object()
+
+        if event.is_cancelled and (not request.user.is_authenticated or event.host != request.user):
+            return Response(
+                {"error": "Event has been cancelled."},
+                status=status.HTTP_404_NOT_FOUND
+            )
         serializer = self.get_serializer(event)
         
         # Get active attendees (JOINED or BOOKED, not CANCELLED)
@@ -194,6 +200,12 @@ class EventViewSet(viewsets.ModelViewSet):
         event = self.get_object()
         user = request.user
 
+        if event.is_cancelled:
+            return Response(
+                {"error": "This event has been cancelled."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Hosts cannot join their own events
         if event.host == user:
             return Response(
@@ -277,6 +289,54 @@ class EventViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
 
+    @action(detail=True, methods=["post"], url_path="kick", permission_classes=[IsAuthenticated])
+    @transaction.atomic
+    def kick(self, request, pk=None):
+        """
+        Host-only: remove an attendee from the event.
+        Expects JSON body: {"user_id": <int>}.
+        """
+        event = self.get_object()
+        user = request.user
+
+        if event.host != user:
+            return Response(
+                {"error": "Only the event host can kick attendees."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        target_user_id = request.data.get("user_id")
+        if not target_user_id:
+            return Response(
+                {"error": "user_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            participation = EventParticipation.objects.get(
+                event=event,
+                user_id=target_user_id
+            )
+        except EventParticipation.DoesNotExist:
+            return Response(
+                {"error": "User is not an attendee of this event."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if participation.status == "CANCELLED":
+            return Response(
+                {"error": "User has already been removed from this event."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        participation.status = "CANCELLED"
+        participation.save()
+
+        return Response(
+            {"message": "User has been kicked from the event."},
+            status=status.HTTP_200_OK
+        )
+
     def destroy(self, request, *args, **kwargs):
         """
         Only host can delete their own event.
@@ -290,6 +350,40 @@ class EventViewSet(viewsets.ModelViewSet):
             )
         
         return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=["post"], url_path="cancel", permission_classes=[IsAuthenticated])
+    @transaction.atomic
+    def cancel(self, request, pk=None):
+        """
+        Host-only: cancel an event (soft cancel).
+        """
+        event = self.get_object()
+
+        if event.host != request.user:
+            return Response(
+                {"error": "Only the event host can cancel this event."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if event.is_cancelled:
+            return Response(
+                {"error": "Event is already cancelled."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        event.is_cancelled = True
+        event.save(update_fields=["is_cancelled"])
+
+        EventParticipation.objects.filter(
+            event=event
+        ).exclude(
+            status="CANCELLED"
+        ).update(status="CANCELLED")
+
+        return Response(
+            {"message": "Event has been cancelled."},
+            status=status.HTTP_200_OK
+        )
 
     def update(self, request, *args, **kwargs):
         """
