@@ -59,13 +59,18 @@ export default function Friends() {
       const response = await fetch(`${API}/accounts/users/available${query}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error(`${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('API Error:', response.status, errorData);
+        throw new Error(`${response.status}`);
+      }
       const data = await response.json();
-      setAvailableUsers(data.users);
+      setAvailableUsers(data.users || []);
       setError('');
     } catch (err) {
-      setError('Failed to fetch available users');
-      console.error(err);
+      console.error('Fetch error:', err);
+      setError(`Failed to fetch available users: ${err.message}`);
+      setAvailableUsers([]);
     }
   };
 
